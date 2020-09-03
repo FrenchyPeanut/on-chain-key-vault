@@ -21,6 +21,9 @@ const config: BuidlerConfig = {
     },
     coverage: {
       url: 'http://127.0.0.1:8555' // Coverage launches its own ganache-cli client
+    },
+    localhost: {
+      url: 'http://127.0.0.1:7545'
     }
   },
   etherscan: {

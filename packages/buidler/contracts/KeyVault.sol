@@ -45,7 +45,6 @@ contract KeyVault {
         initialized = true;
     }
 
-
     function addUserKey(address _newUserAddress, string memory _newUserEncryptedSharedKey) public onlyOwners returns (bool) {
         require(_newUserAddress != address(0), 'Cannot use zero-address.');
         userKeys[_newUserAddress] = _newUserEncryptedSharedKey;
@@ -60,6 +59,7 @@ contract KeyVault {
         require(whitelistedUsers[_userAddressToRemove], 'The caller must be a whitelisted member.');
         whitelistedUsers[_userAddressToRemove] = false;
         totalUsers = sub(totalUsers, 1);
+        userKeys[_userAddressToRemove] = '';
         return true;
     }
 

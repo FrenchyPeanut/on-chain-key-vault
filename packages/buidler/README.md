@@ -27,6 +27,10 @@ Note: As is, the tests fail on purpose. This is to show the Solidity stack trace
 
 `npm run coverage`
 
+### Deploy locally
+
+`npx buidler run --network localhost scripts/deploy.ts`
+
 ### Deploy to Ethereum
 
 Create/modify network config in `buidler.config.ts` and add API key and private key, then run:

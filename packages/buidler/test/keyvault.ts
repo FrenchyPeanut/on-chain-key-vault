@@ -4,8 +4,8 @@ import chai from 'chai';
 const { expect, assert } = chai;
 import { deployContract, solidity } from 'ethereum-waffle';
 import KeyVaultArtifact from '../artifacts/KeyVault.json';
-import { KeyVault } from '../typechain/KeyVault';
 import KeyVaultFactoryArtifact from '../artifacts/KeyVaultFactory.json';
+import { KeyVault } from '../typechain/KeyVault';
 import { KeyVaultFactory } from '../typechain/KeyVaultFactory';
 // No need for it yet, but could help improve encyption tasks later on: 
 // import {publicKeyConvert} from 'secp256k1';
@@ -18,7 +18,7 @@ const HDWallet = require('ethereum-hdwallet');
 chai.use(solidity); // Chai wrapper for solidity EVM
 const ZERO = constants.AddressZero;
 const log = console.log;
-
+ 
 describe('KeyVault', () => {
     let signers: Signer[];
     let hdwallet: any;
@@ -110,6 +110,7 @@ describe('KeyVault', () => {
                 encryptedObject.ciphertext,
                 encryptedObject.mac,
             ]).toString('hex');
+            // log('04' + await hdwallet_sencondUser.derive(`m/44'/60'/0'/0/7`).getPublicKey().toString('hex'));
             await keyVault.addUserKey(await signers[2].getAddress(), stringifiedPayload);
             assert.isTrue(await keyVault.getWhitelistedUserStatus(await signers[2].getAddress()));
             expect(await keyVault.totalUsers()).to.equal(2);
@@ -140,7 +141,6 @@ describe('KeyVault', () => {
                 hackerKeyVault_.removeUser(await signers[0].getAddress()),
             ).to.be.revertedWith('The caller must be a whitelisted member.');
         });
-
     });
 
     describe('Secrets management', () => {
