@@ -1,1 +1,1 @@
-# on-chain-key-vault
+# Blockchain key-vault to store and protect your secrets 🔏
