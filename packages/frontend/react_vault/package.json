@@ -17,6 +17,8 @@
     "eccrypto": "^1.1.5",
     "ethereum-hdwallet": "^0.0.26",
     "ethers": "^5.0.9",
+    "ipfs-deploy": "^8.0.1",
+    "ipfs-http-client": "^46.1.1",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-scripts": "3.4.3",
@@ -28,7 +30,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "ipfs": "npx ipfs-deploy build"
   },
   "eslintConfig": {
     "extends": "react-app"
