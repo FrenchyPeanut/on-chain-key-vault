@@ -7,6 +7,7 @@ usePlugin("solidity-coverage");
 
 const INFURA_API_KEY = "";
 const RINKEBY_PRIVATE_KEY = "";
+const ROPSTEN_PRIVATE_KEY = "";
 const ETHERSCAN_API_KEY = "";
 
 const config: BuidlerConfig = {
@@ -18,6 +19,10 @@ const config: BuidlerConfig = {
     rinkeby: {
       url: `https://rinkeby.infura.io/v3/${INFURA_API_KEY}`,
       accounts: [RINKEBY_PRIVATE_KEY]
+    },
+    ropsten: {
+      url: `https://ropsten.infura.io/v3/${INFURA_API_KEY}`,
+      accounts: [ROPSTEN_PRIVATE_KEY]
     },
     coverage: {
       url: 'http://127.0.0.1:8555' // Coverage launches its own ganache-cli client

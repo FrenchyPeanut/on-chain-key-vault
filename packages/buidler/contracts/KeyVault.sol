@@ -23,20 +23,12 @@ contract KeyVault {
         _;
     }
 
-    // constructor(string memory _sharedKey, string memory _salt) public {
-    //     whitelistedUsers[msg.sender] = true;
-    //     userKeys[msg.sender] = _sharedKey;
-    //     salt = _salt;
-    //     totalUsers = add(totalUsers, 1);
-    // }
-
     constructor() public {
         initialized = true;
     }
 
     function initialize(address firstOwner, string memory _sharedKey, string memory _salt) public {
         require(!initialized, 'The contract must not be initialized beforehand.');
-        
         require(firstOwner != address(0), 'Cannot add zero address.');
         whitelistedUsers[firstOwner] = true;
         userKeys[firstOwner] = _sharedKey;
@@ -79,6 +71,10 @@ contract KeyVault {
 
     function getUserKeys(address _address) public view returns (string memory) {
         return userKeys[_address];
+    }
+
+    function getSalt() public view returns (string memory) {
+        return salt;
     }
 
     function add(uint256 a, uint256 b) internal pure returns (uint256){

@@ -46,3 +46,7 @@ body {
 .structContent{
   display: flex;
 }
+
+.smoltext{
+  font-size: 10px;
+}

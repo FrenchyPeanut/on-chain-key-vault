@@ -10,7 +10,7 @@ import { KeyVaultFactory } from '../typechain/KeyVaultFactory';
 // No need for it yet, but could help improve encyption tasks later on: 
 // import {publicKeyConvert} from 'secp256k1';
 import { encrypt, decrypt } from 'eccrypto';
-import { AES, enc } from 'crypto-js';
+import { AES, enc, lib } from 'crypto-js';
 
 const HDWallet = require('ethereum-hdwallet');
 
@@ -32,6 +32,10 @@ describe('KeyVault', () => {
 
     before(async () => {
         signers = await ethers.getSigners();
+        const salt_ = lib.WordArray.random(128 / 8);
+        initialSeed = salt_.toString();
+        const salt__ = lib.WordArray.random(128 / 8);
+        initialSharedKey = salt__.toString();
 
         // The hash we wish to sign and verify:
         const messageId = ethers.utils.id(initialSeed);
