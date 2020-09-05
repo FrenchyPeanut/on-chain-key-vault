@@ -2,6 +2,9 @@
   "name": "react_vault",
   "version": "0.1.0",
   "private": true,
+  "author": "Charles BEYER",
+  "license": "MIT",
+  "homepage": "https://github.com/FrenchyPeanut/on-chain-key-vault",
   "dependencies": {
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.3.2",
