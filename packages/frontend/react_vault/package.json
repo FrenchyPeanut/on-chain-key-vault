@@ -6,6 +6,7 @@
   "license": "MIT",
   "homepage": "https://github.com/FrenchyPeanut/on-chain-key-vault",
   "dependencies": {
+    "@ethersproject/hdnode": "^5.0.4",
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.3.2",
     "@testing-library/user-event": "^7.1.2",
@@ -18,7 +19,6 @@
     "@web3-react/core": "^6.1.1",
     "crypto-js": "^4.0.0",
     "eccrypto": "^1.1.5",
-    "ethereum-hdwallet": "^0.0.26",
     "ethers": "^5.0.9",
     "ipfs-deploy": "^8.0.1",
     "ipfs-http-client": "^46.1.1",
