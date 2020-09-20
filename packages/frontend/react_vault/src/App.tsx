@@ -178,10 +178,10 @@ function App() {
     const userKey = await keyVault_.getUserKeys(await signer.getAddress());
     const buffer_ = Buffer.from(userKey, 'hex');
     const parsedPayload = {
-      iv: Buffer.from(buffer_.toString('hex', 0, 16), 'hex'), // 16 bits
-      ephemPublicKey: Buffer.from(buffer_.toString('hex', 16, 81), 'hex'), // 65 bits // 33 bits if uncompressed
-      ciphertext: Buffer.from(buffer_.toString('hex', 81, buffer_.length - 32), 'hex'), // var bits
-      mac: Buffer.from(buffer_.toString('hex', buffer_.length - 32, buffer_.length), 'hex') // 32 bits
+      iv: Buffer.from(buffer_.toString('hex', 0, 16), 'hex'), // 16 bytes
+      ephemPublicKey: Buffer.from(buffer_.toString('hex', 16, 81), 'hex'), // 65 bytes // 33 bytes if uncompressed
+      ciphertext: Buffer.from(buffer_.toString('hex', 81, buffer_.length - 32), 'hex'), // var bytes
+      mac: Buffer.from(buffer_.toString('hex', buffer_.length - 32, buffer_.length), 'hex') // 32 bytes
     };
     return parsedPayload;
   }
