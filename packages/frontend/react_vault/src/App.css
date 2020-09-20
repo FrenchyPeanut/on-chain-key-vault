@@ -24,29 +24,48 @@ body {
   background-color: #282c34;
 }
 
-.contractStuff{
+.contractStuff {
   margin-top: 20px;
-  
 }
 
-.accountDetails{
+.accountDetails {
   font-size: 15px;
 }
 
-.textStyle{
+.textStyle {
   color: white;
 }
 
-.structStuff{
+.structStuff {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.structContent{
+.structContent {
   display: flex;
 }
 
-.smoltext{
+.smoltext {
   font-size: 10px;
+}
+
+.logConsole {
+  background-color: teal;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  margin-bottom: 10px;
+  margin-left: 10px;
+  padding: 10px;
+}
+
+.blink {
+  animation: blinker 1s linear infinite;
+}
+
+@keyframes blinker {
+  50% {
+    opacity: 0;
+  }
 }

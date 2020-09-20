@@ -9,20 +9,29 @@ import KeyVaultArtifact from './artifacts/KeyVault.json';
 import KeyVaultFactoryArtifact from './artifacts/KeyVaultFactory.json';
 import { encrypt, decrypt } from 'eccrypto';
 import { AES, enc, lib } from 'crypto-js';
+import {
+  HDNode,
+  defaultPath
+} from "@ethersproject/hdnode";
+import { BytesLike } from "@ethersproject/bytes";
 
-const HDWallet = require('ethereum-hdwallet');
 const ZERO = constants.AddressZero;
 
+// Use this to debug code:
 const log = console.log;
+// Uncomment web3 if you need to change it from ethers
 // let web3: Web3;
 let provider: any;
 let signer: Signer;
 let keyVaultFactory_: Contract;
 let keyVault_: Contract;
-let hdwallet_: any;
+let hdwallet_: HDNode;
 
 let initialSeed: string;
 let sharedKey: string;
+
+const pubKeyLength = 132; // Counting the 0x and 04 prefix for uncompressed key
+const privKeyLength = 66; // Counting the 0x prefix
 
 // Change this value to the one you have on your network:
 // Ropsten address of the Vault Factory:
@@ -46,6 +55,7 @@ function App() {
   const [addressAdd, setAddressAdd] = useState('');
   const [addressRemove, setAddressRemove] = useState('');
   const [vaultAddress, setVaultAddress] = useState('');
+  const [logText, setLogText] = useState('Welcome sir');
 
   const loadBlockChain = async () => {
     const providerOptions = {
@@ -69,20 +79,23 @@ function App() {
   const loadDerivedAccount = async (salt_: string) => {
     const messageId = ethers.utils.id(salt_);
     const message_bytes = ethers.utils.arrayify(messageId);
-    let signature = await signer.signMessage(message_bytes);
-    hdwallet_ = HDWallet.fromMnemonic(signature);
-    setDerivedPubKey(`0x${hdwallet_.derive(`m/44'/60'/0'/0/0`).getPublicKey().toString('hex')}`);
+    let signature: BytesLike = await signer.signMessage(message_bytes);
+    hdwallet_ = await HDNode.fromSeed(ethers.utils.arrayify(signature.substr(0, signature.length - 2))).derivePath(defaultPath);
+    setDerivedPubKey(`${ethers.utils.computePublicKey(hdwallet_.publicKey)}`);
     setHasVault(true);
+    setLogText('Successfully connected to Vault');
   }
 
   const loadVault = async () => {
     loadKeyVaultFactoryContract(initialFactoryAddress);
     const userKeyVaultAddress = await keyVaultFactory_.getUserKeyVaults(await signer.getAddress());
     setKeyVaultAddress(userKeyVaultAddress);
-    if (userKeyVaultAddress != ZERO) { // && loadingAccount) {
+    if (userKeyVaultAddress !== ZERO) { // && loadingAccount) {
       loadKeyVaultContract(userKeyVaultAddress);
       const salt_ = await keyVault_.salt();
       await loadDerivedAccount(salt_);
+    } else {
+      setLogText('You do not have any deployed Vault');
     }
   }
 
@@ -101,9 +114,9 @@ function App() {
     await generateSecondSymmetricEncryptionKey();
     const messageId = ethers.utils.id(initialSeed);
     const message_bytes = ethers.utils.arrayify(messageId);
-    let signature = await signer.signMessage(message_bytes);
-    const hdwallet = HDWallet.fromMnemonic(signature);
-    const encryptedObject = await encrypt(Buffer.from('04' + await hdwallet.derive(`m/44'/60'/0'/0/0`).getPublicKey().toString('hex'), 'hex'), Buffer.from(sharedKey));
+    let signature: BytesLike = await signer.signMessage(message_bytes);
+    hdwallet_ = await HDNode.fromSeed(ethers.utils.arrayify(signature.substr(0, signature.length - 2))).derivePath(defaultPath);
+    const encryptedObject = await encrypt(Buffer.from(ethers.utils.computePublicKey(hdwallet_.publicKey).substr(2, pubKeyLength), 'hex'), Buffer.from(sharedKey));
 
     const stringifiedPayload = Buffer.concat([
       encryptedObject.iv,
@@ -112,21 +125,31 @@ function App() {
       encryptedObject.mac,
     ]).toString('hex');
     loadKeyVaultFactoryContract(initialFactoryAddress);
-    const tx = await keyVaultFactory_.createVault(stringifiedPayload, initialSeed);
-    await tx.wait();
+    try {
+      const tx = await keyVaultFactory_.createVault(stringifiedPayload, initialSeed);
+      await tx.wait();
+      setLogText('Vault Deployed');
+    } catch (e) { setLogText('Error while deploying the Vault'); }
     const userKeyVaultAddress = await keyVaultFactory_.getUserKeyVaults(await signer.getAddress());
     setKeyVaultAddress(userKeyVaultAddress);
-    setDerivedPubKey(`0x${hdwallet.derive(`m/44'/60'/0'/0/0`).getPublicKey().toString('hex')}`);
+    setDerivedPubKey(`${ethers.utils.computePublicKey(hdwallet_.publicKey)}`);
   }
 
   const connectToVault = async () => {
-    if (vaultAddress != ZERO) {
+    if (vaultAddress !== ZERO) {
       setKeyVaultAddress(vaultAddress);
       loadKeyVaultContract(vaultAddress);
-      const salt__ = await keyVault_.salt();
-      if (salt__ != '') {
+      let salt__: any;
+      try {
+        salt__ = await keyVault_.salt();
+      } catch (e) { log(e); salt__ = '' }
+      if (salt__ !== '') {
         await loadDerivedAccount(salt__);
+      } else {
+        setLogText('Wrong Vault address');
       }
+    } else {
+      setLogText('Wrong Vault address');
     }
   }
 
@@ -140,11 +163,14 @@ function App() {
 
   const getSecret = async () => {
     if (await keyVault_.getWhitelistedUserStatus(signer.getAddress())) {
-      const initialSharedKey = await decrypt(await hdwallet_.derive(`m/44'/60'/0'/0/0`).getPrivateKey(), await getInitialSharedKey());
+      const initialSharedKey = await decrypt(Buffer.from(hdwallet_.privateKey.substr(2, privKeyLength), 'hex'), await getInitialSharedKey());
       const secretValue = await keyVault_.getSecret(secretName_);
       const bytes = AES.decrypt(secretValue, initialSharedKey.toString());
       const decryptedMessage = bytes.toString(enc.Utf8);
       setSecretValue_(decryptedMessage);
+      setLogText((decryptedMessage.length !== 0) ? 'Secret Loaded' : 'Secret does not exist');
+    } else {
+      setLogText('You are not allowed to load secrets');
     }
   }
 
@@ -162,31 +188,54 @@ function App() {
 
   const setSecret = async () => {
     if (await keyVault_.getWhitelistedUserStatus(signer.getAddress())) {
-      const initialSharedKey = await decrypt(await hdwallet_.derive(`m/44'/60'/0'/0/0`).getPrivateKey(), await getInitialSharedKey());
-      const ciphertext = AES.encrypt(secretValue, initialSharedKey.toString()).toString();
-      await keyVault_.setSecret(secretName, ciphertext);
+      if (secretValue.length !== 0 && secretName.length !== 0) {
+        const initialSharedKey = await decrypt(Buffer.from(hdwallet_.privateKey.substr(2, privKeyLength), 'hex'), await getInitialSharedKey());
+        const ciphertext = AES.encrypt(secretValue, initialSharedKey.toString()).toString();
+        try {
+          await keyVault_.setSecret(secretName, ciphertext);
+          setLogText('Secret Added');
+        } catch (e) { setLogText('Secret already exists'); }
+      } else {
+        setLogText(secretValue.length === 0 && secretName.length === 0 ? 'Please add values' : secretValue.length === 0 ? 'Please add a Secret value' : 'Please add a Secret name');
+      }
+    } else {
+      setLogText('You are not authorized to add secrets');
     }
   }
 
   const AddUserPublicKey = async () => {
     if (await keyVault_.getWhitelistedUserStatus(signer.getAddress())) {
-      const initialSharedKey = await decrypt(await hdwallet_.derive(`m/44'/60'/0'/0/0`).getPrivateKey(), await getInitialSharedKey());
-      const encryptedObject = await encrypt(Buffer.from('04' + publicKeyAdd.slice(2, publicKeyAdd.length), 'hex'), Buffer.from(initialSharedKey.toString('hex'), 'hex'));
-      const stringifiedPayload = Buffer.concat([
-        encryptedObject.iv,
-        encryptedObject.ephemPublicKey,
-        encryptedObject.ciphertext,
-        encryptedObject.mac,
-      ]).toString('hex');
-      await keyVault_.addUserKey(addressAdd, stringifiedPayload);
-      setPublicKeyAdd('');
+      if (addressAdd.length !== 0 && addressAdd !== ZERO && publicKeyAdd.length !== 0 && ethers.utils.isAddress(addressAdd)) {
+        const initialSharedKey = await decrypt(Buffer.from(hdwallet_.privateKey.substr(2, privKeyLength), 'hex'), await getInitialSharedKey());
+        const encryptedObject = await encrypt(Buffer.from(publicKeyAdd.slice(2, publicKeyAdd.length), 'hex'), Buffer.from(initialSharedKey.toString('hex'), 'hex'));
+        const stringifiedPayload = Buffer.concat([
+          encryptedObject.iv,
+          encryptedObject.ephemPublicKey,
+          encryptedObject.ciphertext,
+          encryptedObject.mac,
+        ]).toString('hex');
+        try {
+          await keyVault_.addUserKey(addressAdd, stringifiedPayload);
+          setPublicKeyAdd('');
+          setLogText('User added');
+        } catch (e) { setLogText('Error while adding user'); }
+      } else {
+        setLogText(addressAdd.length === 0 && publicKeyAdd.length === 0 ? 'Please add values' : (addressAdd.length === 0 || !ethers.utils.isAddress(addressAdd)) ? 'Please add an address to add' : 'Please add a public-key to add');
+      }
+    } else {
+      setLogText('You are not authorized to remove users');
     }
   }
 
   const RemoveUserPublicKey = async () => {
     if (await keyVault_.getWhitelistedUserStatus(signer.getAddress())) {
-      await keyVault_.removeUser(addressRemove);
-      setAddressRemove('');
+      try {
+        await keyVault_.removeUser(addressRemove);
+        setAddressRemove('');
+        setLogText('User removed');
+      } catch (e) { setLogText('Error while removing user'); }
+    } else {
+      setLogText('You are not authorized to remove users');
     }
   }
 
@@ -194,6 +243,7 @@ function App() {
     setHasVault(false);
     setKeyVaultAddress('');
     setDerivedPubKey('');
+    setLogText('Successfully Logged out from Vault')
   }
 
   useEffect(() => {
@@ -301,6 +351,9 @@ function App() {
         <br />
       </div>
 
+      <div className='logConsole'>
+        <span className='blink'>> </span><span>{logText}</span>
+      </div>
     </div>
   );
 }

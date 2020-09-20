@@ -81,4 +81,4 @@ yarn run ipfs
 ```
 
 ## Demo
-The demo is currently available here: https://bafybeieqas75pcqu5d3aaypwarvpqspbou43ethcgfmidpti5dlhvh7gbe.ipfs.infura-ipfs.io/
+The demo is currently available here on Ropsten network: https://bafybeighflkdx64udpuknrjyidmvhhsgowx7eqxylyi2psipia6l6rl62y.ipfs.infura-ipfs.io/
