@@ -4,7 +4,7 @@
   "private": true,
   "author": "Charles BEYER",
   "license": "MIT",
-  "homepage": "https://github.com/FrenchyPeanut/on-chain-key-vault",
+  "homepage": ".",
   "dependencies": {
     "@ethersproject/hdnode": "^5.0.4",
     "@testing-library/jest-dom": "^4.2.4",
