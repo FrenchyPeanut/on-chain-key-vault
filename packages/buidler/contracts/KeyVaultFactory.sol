@@ -39,12 +39,12 @@ contract KeyVaultFactory is CloneFactory {
      * @param _sharedKey encrypted message of the secret key with the user derived wallet public-key
      * @param _salt salt used for signature and HD wallet derivation
      */
-    function createVault(string calldata _sharedKey, string calldata _salt) external {
+    function createVault(string calldata _sharedKey, string calldata _salt, string calldata _userDerivedPublicKey) external {
         require(!hasVault[msg.sender], 'Cannot deploy another keyVault.');
         KeyVault keyvault = KeyVault(
             createClone(vaultTarget)
         );
-        keyvault.initialize(msg.sender, _sharedKey, _salt);
+        keyvault.initialize(msg.sender, _sharedKey, _salt, _userDerivedPublicKey);
 
         keyVaultAddresses.push(keyvault);
         emit KeyVaultDeployed(keyvault);
