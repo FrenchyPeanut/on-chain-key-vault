@@ -9,7 +9,7 @@ import { KeyVault } from '../typechain/KeyVault';
 // The Factory artifact is not stable yet, need to wait for Buidler next update
 // import { KeyVaultFactory } from '../typechain/KeyVaultFactory';
 import { encrypt, decrypt } from 'eccrypto';
-import { AES, enc, lib } from 'crypto-js';
+import { AES, enc, lib, mode } from 'crypto-js';
 import {
     HDNode,
     defaultPath
@@ -186,14 +186,18 @@ describe('KeyVault', () => {
 
     describe('Secrets management', () => {
         it('can add a new secret', async () => {
-            const ciphertext = AES.encrypt(secretMessage, initialSharedKey).toString();
+            const ciphertext = AES.encrypt(secretMessage, initialSharedKey, {
+                mode: mode.CBC
+            }).toString();
             await keyVault.setSecret(secretName, ciphertext);
             assert.equal(await keyVault.getSecret(secretName), ciphertext);
         });
 
         it('can retreive and verify the secret message', async () => {
             const secretValue = await keyVault.getSecret(secretName);
-            const bytes = AES.decrypt(secretValue, initialSharedKey);
+            const bytes = AES.decrypt(secretValue, initialSharedKey, {
+                mode: mode.CBC
+            });
             const decryptedMessage = bytes.toString(enc.Utf8);
             assert.equal(decryptedMessage, secretMessage);
         });

@@ -13,6 +13,7 @@ import {
   HDNode,
   defaultPath
 } from "@ethersproject/hdnode";
+import { generateSymmetricEncryptionKey, generateHDWallet, getInitialSharedKey, getStringifiedPayload } from './lib'
 import { BytesLike } from "@ethersproject/bytes";
 
 const ZERO = constants.AddressZero;
@@ -73,14 +74,10 @@ function App() {
     setAddress(await signer.getAddress());
     const balance = await provider_.getBalance(await signer.getAddress());
     setBalance(ethers.utils.formatEther(balance));
-    // loadVault();
   }
 
   const loadDerivedAccount = async (salt_: string) => {
-    const messageId = ethers.utils.id(salt_);
-    const message_bytes = ethers.utils.arrayify(messageId);
-    let signature: BytesLike = await signer.signMessage(message_bytes);
-    hdwallet_ = await HDNode.fromSeed(ethers.utils.arrayify(signature.substr(0, signature.length - 2))).derivePath(defaultPath);
+    hdwallet_ = await generateHDWallet(salt_, signer);
     setDerivedPubKey(`${ethers.utils.computePublicKey(hdwallet_.publicKey)}`);
     setHasVault(true);
     setLogText('Successfully connected to Vault');
@@ -90,7 +87,7 @@ function App() {
     loadKeyVaultFactoryContract(initialFactoryAddress);
     const userKeyVaultAddress = await keyVaultFactory_.getUserKeyVaults(await signer.getAddress());
     setKeyVaultAddress(userKeyVaultAddress);
-    if (userKeyVaultAddress !== ZERO) { // && loadingAccount) {
+    if (userKeyVaultAddress !== ZERO) {
       loadKeyVaultContract(userKeyVaultAddress);
       const salt_ = await keyVault_.salt();
       await loadDerivedAccount(salt_);
@@ -99,31 +96,15 @@ function App() {
     }
   }
 
-  const generateSymmetricEncryptionKey = async () => {
-    const salt_ = lib.WordArray.random(128 / 8);
-    initialSeed = salt_.toString();
-  }
-
-  const generateSecondSymmetricEncryptionKey = async () => {
-    const salt_ = lib.WordArray.random(128 / 8);
-    sharedKey = salt_.toString();
-  }
-
   const deployVault = async () => {
-    await generateSymmetricEncryptionKey();
-    await generateSecondSymmetricEncryptionKey();
+    initialSeed = await generateSymmetricEncryptionKey();
+    sharedKey = await generateSymmetricEncryptionKey();
     const messageId = ethers.utils.id(initialSeed);
     const message_bytes = ethers.utils.arrayify(messageId);
     let signature: BytesLike = await signer.signMessage(message_bytes);
     hdwallet_ = await HDNode.fromSeed(ethers.utils.arrayify(signature.substr(0, signature.length - 2))).derivePath(defaultPath);
     const encryptedObject = await encrypt(Buffer.from(ethers.utils.computePublicKey(hdwallet_.publicKey).substr(2, pubKeyLength), 'hex'), Buffer.from(sharedKey));
-
-    const stringifiedPayload = Buffer.concat([
-      encryptedObject.iv,
-      encryptedObject.ephemPublicKey,
-      encryptedObject.ciphertext,
-      encryptedObject.mac,
-    ]).toString('hex');
+    const stringifiedPayload = await getStringifiedPayload(encryptedObject);
     loadKeyVaultFactoryContract(initialFactoryAddress);
     try {
       const tx = await keyVaultFactory_.createVault(stringifiedPayload, initialSeed);
@@ -163,7 +144,7 @@ function App() {
 
   const getSecret = async () => {
     if (await keyVault_.getWhitelistedUserStatus(signer.getAddress())) {
-      const initialSharedKey = await decrypt(Buffer.from(hdwallet_.privateKey.substr(2, privKeyLength), 'hex'), await getInitialSharedKey());
+      const initialSharedKey = await decrypt(Buffer.from(hdwallet_.privateKey.substr(2, privKeyLength), 'hex'), await getInitialSharedKey(await keyVault_.getUserKeys(await signer.getAddress())));
       const secretValue = await keyVault_.getSecret(secretName_);
       const bytes = AES.decrypt(secretValue, initialSharedKey.toString());
       const decryptedMessage = bytes.toString(enc.Utf8);
@@ -174,22 +155,10 @@ function App() {
     }
   }
 
-  const getInitialSharedKey = async () => {
-    const userKey = await keyVault_.getUserKeys(await signer.getAddress());
-    const buffer_ = Buffer.from(userKey, 'hex');
-    const parsedPayload = {
-      iv: Buffer.from(buffer_.toString('hex', 0, 16), 'hex'), // 16 bytes
-      ephemPublicKey: Buffer.from(buffer_.toString('hex', 16, 81), 'hex'), // 65 bytes // 33 bytes if uncompressed
-      ciphertext: Buffer.from(buffer_.toString('hex', 81, buffer_.length - 32), 'hex'), // var bytes
-      mac: Buffer.from(buffer_.toString('hex', buffer_.length - 32, buffer_.length), 'hex') // 32 bytes
-    };
-    return parsedPayload;
-  }
-
   const setSecret = async () => {
     if (await keyVault_.getWhitelistedUserStatus(signer.getAddress())) {
       if (secretValue.length !== 0 && secretName.length !== 0) {
-        const initialSharedKey = await decrypt(Buffer.from(hdwallet_.privateKey.substr(2, privKeyLength), 'hex'), await getInitialSharedKey());
+        const initialSharedKey = await decrypt(Buffer.from(hdwallet_.privateKey.substr(2, privKeyLength), 'hex'), await getInitialSharedKey(await keyVault_.getUserKeys(await signer.getAddress())));
         const ciphertext = AES.encrypt(secretValue, initialSharedKey.toString()).toString();
         try {
           await keyVault_.setSecret(secretName, ciphertext);
@@ -206,14 +175,9 @@ function App() {
   const AddUserPublicKey = async () => {
     if (await keyVault_.getWhitelistedUserStatus(signer.getAddress())) {
       if (addressAdd.length !== 0 && addressAdd !== ZERO && publicKeyAdd.length !== 0 && ethers.utils.isAddress(addressAdd)) {
-        const initialSharedKey = await decrypt(Buffer.from(hdwallet_.privateKey.substr(2, privKeyLength), 'hex'), await getInitialSharedKey());
+        const initialSharedKey = await decrypt(Buffer.from(hdwallet_.privateKey.substr(2, privKeyLength), 'hex'), await getInitialSharedKey(await keyVault_.getUserKeys(await signer.getAddress())));
         const encryptedObject = await encrypt(Buffer.from(publicKeyAdd.slice(2, publicKeyAdd.length), 'hex'), Buffer.from(initialSharedKey.toString('hex'), 'hex'));
-        const stringifiedPayload = Buffer.concat([
-          encryptedObject.iv,
-          encryptedObject.ephemPublicKey,
-          encryptedObject.ciphertext,
-          encryptedObject.mac,
-        ]).toString('hex');
+        const stringifiedPayload = await getStringifiedPayload(encryptedObject);
         try {
           await keyVault_.addUserKey(addressAdd, stringifiedPayload);
           setPublicKeyAdd('');
